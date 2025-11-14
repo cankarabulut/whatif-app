@@ -268,7 +268,7 @@ export default function FixturesScreen() {
     }}
   >
     <Text style={{ color: '#e5e7eb', fontSize: 11 }}>
-      {tr ? 'Seçimleri temizle' : 'Clear selections'}
+      {tr ? 'Temizle' : 'Clear selections'}
     </Text>
   </Pressable>
 </View>
