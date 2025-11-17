@@ -235,7 +235,7 @@ export default function FixturesScreen() {
     paddingHorizontal: 16,
     marginBottom: 4,
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
   }}
