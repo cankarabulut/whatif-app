@@ -1,4 +1,4 @@
-
+// src/components/TeamLogo.js
 import React from 'react';
 import { View, Text } from 'react-native';
 
@@ -18,7 +18,11 @@ function pickColor(name) {
 }
 
 export default function TeamLogo({ name, size = 26 }) {
-  const initials = name
+  // Bazı provider'lar takım ismini göndermeyebilir; crash olmaması için guard koyduk
+  const safeName =
+    typeof name === 'string' && name.trim().length > 0 ? name : '?';
+
+  const initials = safeName
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
@@ -26,7 +30,7 @@ export default function TeamLogo({ name, size = 26 }) {
     .join('')
     .toUpperCase();
 
-  const bg = pickColor(name);
+  const bg = pickColor(safeName);
 
   return (
     <View
@@ -37,10 +41,18 @@ export default function TeamLogo({ name, size = 26 }) {
         backgroundColor: bg,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 6
+        marginRight: 6,
       }}
     >
-      <Text style={{ color: '#0f172a', fontSize: size * 0.45, fontWeight: '700' }}>{initials}</Text>
+      <Text
+        style={{
+          color: '#0f172a',
+          fontSize: size * 0.45,
+          fontWeight: '700',
+        }}
+      >
+        {initials}
+      </Text>
     </View>
   );
 }

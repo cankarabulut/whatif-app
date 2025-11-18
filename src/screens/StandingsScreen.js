@@ -253,7 +253,6 @@ export default function StandingsScreen() {
       const fresh = await getFixtures({
         league: league.id,
         season,
-        provider: league.providerForFixtures,
       });
       setFixtures(fresh);
       await setCachedFixtures(league.id, season, fresh);

@@ -1,5 +1,5 @@
 // src/screens/FixturesScreen.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -21,6 +21,38 @@ import {
   setFixturePredictions,
 } from '../storage/cache';
 
+function computeTargetRound(rounds, matches, league, season) {
+  if (!rounds.length || !matches.length) return null;
+
+  const finishedRounds = matches
+    .filter((m) => m.status === 'FINISHED')
+    .map((m) => m.round);
+  const maxFinished = finishedRounds.length
+    ? Math.max(...finishedRounds)
+    : null;
+
+  const leagueSeasons = league.seasons || [];
+  const latestSeason = leagueSeasons[leagueSeasons.length - 1];
+  const isCurrentSeason = season === latestSeason;
+
+  if (isCurrentSeason) {
+    if (maxFinished == null) {
+      // güncel sezon; hiç maç oynanmamış → ilk hafta
+      return rounds[0];
+    }
+    const idx = rounds.indexOf(maxFinished);
+    if (idx >= 0 && idx < rounds.length - 1) {
+      // sıradaki aktif hafta
+      return rounds[idx + 1];
+    }
+    // sezon bitmiş → son oynanan hafta
+    return maxFinished;
+  }
+
+  // geçmiş sezon → son oynanan hafta, o da yoksa son hafta
+  return maxFinished || rounds[rounds.length - 1];
+}
+
 export default function FixturesScreen() {
   const { league, season, round, setLeagueSeason, setRound, lang } = useAppState();
   const [fixtures, setFixtures] = useState([]);
@@ -35,24 +67,25 @@ export default function FixturesScreen() {
 
   useEffect(() => {
     load(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [league, season]);
 
   async function load(initial) {
     if (initial) setLoading(true);
+
     try {
       const storedStates = await getFixturePredictions(league.id, season);
       setFixtureStates(storedStates || {});
 
       const cached = await getCachedFixtures(league.id, season);
       if (cached && initial) {
-        setupRounds(cached);
         setFixtures(cached);
+        setupRounds(cached);
       }
 
       const fresh = await getFixtures({
         league: league.id,
         season,
-        provider: league.providerForFixtures,
       });
 
       setFixtures(fresh);
@@ -77,45 +110,21 @@ export default function FixturesScreen() {
       return;
     }
 
-    const finishedRounds = matches
-      .filter((m) => m.status === 'FINISHED')
-      .map((m) => m.round);
-    const maxFinished = finishedRounds.length
-      ? Math.max(...finishedRounds)
-      : null;
+    const initialRound = computeTargetRound(rs, matches, league, season);
 
-    const leagueSeasons = league.seasons || [];
-    const latestSeason = leagueSeasons[leagueSeasons.length - 1];
-    const isCurrentSeason = season === latestSeason;
-
-    let initialRound;
-
-    if (isCurrentSeason) {
-      if (maxFinished == null) {
-        initialRound = rs[0];
-      } else {
-        const idx = rs.indexOf(maxFinished);
-        if (idx >= 0 && idx < rs.length - 1) {
-          initialRound = rs[idx + 1]; // sıradaki aktif hafta
-        } else {
-          initialRound = maxFinished; // sezon bitmiş
-        }
-      }
-    } else {
-      // geçmiş sezon → son oynanan hafta
-      initialRound = maxFinished || rs[rs.length - 1];
-    }
-
-    if (round == null || !rs.includes(round)) {
+    if (initialRound != null && (round == null || !rs.includes(round))) {
       setRound(initialRound);
     }
   }
 
   const selectedRound = round;
-  const filtered =
-    selectedRound == null
-      ? fixtures
-      : fixtures.filter((m) => m.round === selectedRound);
+  const filtered = useMemo(
+    () =>
+      selectedRound == null
+        ? fixtures
+        : fixtures.filter((m) => m.round === selectedRound),
+    [fixtures, selectedRound]
+  );
 
   const handleSelectOutcome = (fixture, outcome) => {
     setFixtureStates((prev) => {
@@ -169,36 +178,8 @@ export default function FixturesScreen() {
 
   const handleJumpToCurrentRound = () => {
     if (!fixtures.length || !rounds.length) return;
-  
-    const rs = rounds;
-    const finishedRounds = fixtures
-      .filter((m) => m.status === 'FINISHED')
-      .map((m) => m.round);
-    const maxFinished = finishedRounds.length
-      ? Math.max(...finishedRounds)
-      : null;
-  
-    const leagueSeasons = league.seasons || [];
-    const latestSeason = leagueSeasons[leagueSeasons.length - 1];
-    const isCurrentSeason = season === latestSeason;
-  
-    let targetRound;
-  
-    if (isCurrentSeason) {
-      if (maxFinished == null) {
-        targetRound = rs[0];
-      } else {
-        const idx = rs.indexOf(maxFinished);
-        if (idx >= 0 && idx < rs.length - 1) {
-          targetRound = rs[idx + 1];
-        } else {
-          targetRound = maxFinished;
-        }
-      }
-    } else {
-      targetRound = maxFinished || rs[rs.length - 1];
-    }
-  
+
+    const targetRound = computeTargetRound(rounds, fixtures, league, season);
     if (targetRound != null) {
       setRound(targetRound);
     }
@@ -229,49 +210,49 @@ export default function FixturesScreen() {
         lang={lang}
       />
 
-      {/* Seçimleri temizle butonu */}
+      {/* Güncel hafta + seçimleri temizle */}
       <View
-  style={{
-    paddingHorizontal: 16,
-    marginBottom: 4,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  }}
->
-  <Pressable
-    onPress={handleJumpToCurrentRound}
-    style={{
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: '#111827',
-      backgroundColor: '#020617',
-    }}
-  >
-    <Text style={{ color: '#e5e7eb', fontSize: 11 }}>
-      {tr ? 'Güncel haftayı getir' : 'Current week'}
-    </Text>
-  </Pressable>
+        style={{
+          paddingHorizontal: 16,
+          marginBottom: 4,
+          flexDirection: 'row',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <Pressable
+          onPress={handleJumpToCurrentRound}
+          style={{
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: '#111827',
+            backgroundColor: '#020617',
+          }}
+        >
+          <Text style={{ color: '#e5e7eb', fontSize: 11 }}>
+            {tr ? 'Güncel haftayı getir' : 'Current week'}
+          </Text>
+        </Pressable>
 
-  <Pressable
-    onPress={handleClearSelections}
-    style={{
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: '#111827',
-      backgroundColor: '#020617',
-    }}
-  >
-    <Text style={{ color: '#e5e7eb', fontSize: 11 }}>
-      {tr ? 'Temizle' : 'Clear selections'}
-    </Text>
-  </Pressable>
-</View>
+        <Pressable
+          onPress={handleClearSelections}
+          style={{
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: '#111827',
+            backgroundColor: '#020617',
+          }}
+        >
+          <Text style={{ color: '#e5e7eb', fontSize: 11 }}>
+            {tr ? 'Temizle' : 'Clear selections'}
+          </Text>
+        </Pressable>
+      </View>
 
       <FlatList
         data={filtered}

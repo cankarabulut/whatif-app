@@ -1,47 +1,51 @@
+// src/storage/cache.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-function key(prefix, league, season) {
+function makeKey(prefix, league, season) {
   return `${prefix}:${league}:${season}`;
+}
+
+async function getJson(key, fallback) {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function setJson(key, value) {
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // sessiz geçiyoruz; cache hatası app'i bozmamalı
+  }
 }
 
 /**
  * FIXTURES CACHE
  */
 export async function getCachedFixtures(league, season) {
-  try {
-    const k = key('fixtures', league, season);
-    const raw = await AsyncStorage.getItem(k);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  const k = makeKey('fixtures', league, season);
+  return getJson(k, null);
 }
 
 export async function setCachedFixtures(league, season, fixtures) {
-  try {
-    const k = key('fixtures', league, season);
-    await AsyncStorage.setItem(k, JSON.stringify(fixtures));
-  } catch {}
+  const k = makeKey('fixtures', league, season);
+  return setJson(k, fixtures);
 }
 
 /**
  * STANDINGS CACHE
  */
 export async function getCachedStandings(league, season) {
-  try {
-    const k = key('standings', league, season);
-    const raw = await AsyncStorage.getItem(k);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  const k = makeKey('standings', league, season);
+  return getJson(k, null);
 }
 
 export async function setCachedStandings(league, season, table) {
-  try {
-    const k = key('standings', league, season);
-    await AsyncStorage.setItem(k, JSON.stringify(table));
-  } catch {}
+  const k = makeKey('standings', league, season);
+  return setJson(k, table);
 }
 
 /**
@@ -49,20 +53,13 @@ export async function setCachedStandings(league, season, table) {
  * { "Liverpool FC": 6, "Arsenal FC": 2, ... }
  */
 export async function getPredictions(league, season) {
-  try {
-    const k = key('predictions', league, season);
-    const raw = await AsyncStorage.getItem(k);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+  const k = makeKey('predictions', league, season);
+  return getJson(k, {});
 }
 
 export async function setPredictions(league, season, preds) {
-  try {
-    const k = key('predictions', league, season);
-    await AsyncStorage.setItem(k, JSON.stringify(preds));
-  } catch {}
+  const k = makeKey('predictions', league, season);
+  return setJson(k, preds);
 }
 
 /**
@@ -73,18 +70,11 @@ export async function setPredictions(league, season, preds) {
  * }
  */
 export async function getFixturePredictions(league, season) {
-  try {
-    const k = key('fixtureSelections', league, season);
-    const raw = await AsyncStorage.getItem(k);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+  const k = makeKey('fixtureSelections', league, season);
+  return getJson(k, {});
 }
 
 export async function setFixturePredictions(league, season, selections) {
-  try {
-    const k = key('fixtureSelections', league, season);
-    await AsyncStorage.setItem(k, JSON.stringify(selections));
-  } catch {}
+  const k = makeKey('fixtureSelections', league, season);
+  return setJson(k, selections);
 }
