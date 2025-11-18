@@ -10,7 +10,7 @@ export const LEAGUES = [
   { id: 'BSA', name: 'Campeonato Brasileiro Série A', providerForStandings: 'fd', providerForFixtures: 'fd', seasons: [2023, 2024, 2025] },
   { id: 'ELC', name: 'Championship', providerForStandings: 'fd', providerForFixtures: 'fd', seasons: [2023, 2024, 2025] },
   { id: 'CL', name: 'Champions League', providerForStandings: 'fd', providerForFixtures: 'fd', seasons: [2023, 2024, 2025] },
-  {id: 'WC', name: 'Fifa World Cup', providerForStandings: 'fd' , providerForFixtures: 'fd', seasons: [2023, 2024, 2025] },
+  {id: 'QUFA', name: 'Fifa World Cup Qualifications', providerForStandings: 'fd' , providerForFixtures: 'fd', seasons: [2025] },
 ];
 
 export const DEFAULT_LEAGUE = LEAGUES[0];
