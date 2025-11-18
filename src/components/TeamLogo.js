@@ -18,7 +18,7 @@ function pickColor(name) {
 }
 
 export default function TeamLogo({ name, size = 26 }) {
-  // Bazı provider'lar takım ismini göndermeyebilir; crash olmaması için guard koyduk
+  // Bazı provider'lar takım ismini göndermeyebilir; crash olmaması için guard
   const safeName =
     typeof name === 'string' && name.trim().length > 0 ? name : '?';
 
