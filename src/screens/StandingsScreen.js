@@ -147,7 +147,7 @@ function computePredictionDeltas(fixtures, fixtureStates, roundLimit) {
       predictedAway = 1;
     }
 
-    // 3) gerçek puanlar (sadece oynanmış ise)
+    // 3) Gerçek puanlar (sadece oynanmış ise)
     let actualHome = 0;
     let actualAway = 0;
 
@@ -273,19 +273,19 @@ export default function StandingsScreen() {
       (a, b) => a - b
     );
     setRounds(rs);
-  
+
     if (!rs.length) {
       setRound(null);
       return;
     }
-  
+
     const initialRound = computeInitialRound(matches, league, season, round);
-  
+
     // İlk yüklemede veya invalid durumda güncel haftaya al
     if (round == null || !rs.includes(round)) {
       setRound(initialRound);
     }
-  }  
+  }
 
   // Ekran fokuslandığında tahmin state'lerini yenile
   useFocusEffect(
@@ -295,10 +295,10 @@ export default function StandingsScreen() {
         try {
           const storedStates = await getFixturePredictions(league.id, season);
           if (!active) return;
-  
+
           const state = storedStates || {};
           setFixtureStates(state);
-  
+
           const hasAnyPrediction = Object.keys(state).length > 0;
           setMode(hasAnyPrediction ? 'predicted' : 'actual');
         } catch (e) {
@@ -309,7 +309,7 @@ export default function StandingsScreen() {
         active = false;
       };
     }, [league.id, season])
-  );  
+  );
 
   // Seçili haftaya göre gerçek tablo
   const actualTable = useMemo(
@@ -395,9 +395,10 @@ export default function StandingsScreen() {
     if (!fixtures.length) return;
     const initialRound = computeInitialRound(fixtures, league, season, round);
     if (initialRound != null) {
-      setRound(initialRound); // mevcut round ne olursa olsun zorla güncel haftaya dön
+      // mevcut round ne olursa olsun zorla güncel haftaya dön
+      setRound(initialRound);
     }
-  };  
+  };
 
   const renderItem = ({ item }) => {
     const baseRank = actualRankByTeam[item.team] ?? 0; // gerçek sıra
@@ -478,25 +479,74 @@ export default function StandingsScreen() {
           {item.team}
         </Text>
 
-        <Text style={{ width: 26, textAlign: 'right', color: '#9ca3af', fontSize: 11 }}>
+        <Text
+          style={{
+            width: 26,
+            textAlign: 'right',
+            color: '#9ca3af',
+            fontSize: 11,
+          }}
+        >
           {item.played}
         </Text>
-        <Text style={{ width: 26, textAlign: 'right', color: '#9ca3af', fontSize: 11 }}>
+        <Text
+          style={{
+            width: 26,
+            textAlign: 'right',
+            color: '#9ca3af',
+            fontSize: 11,
+          }}
+        >
           {item.won}
         </Text>
-        <Text style={{ width: 26, textAlign: 'right', color: '#9ca3af', fontSize: 11 }}>
+        <Text
+          style={{
+            width: 26,
+            textAlign: 'right',
+            color: '#9ca3af',
+            fontSize: 11,
+          }}
+        >
           {item.draw}
         </Text>
-        <Text style={{ width: 26, textAlign: 'right', color: '#9ca3af', fontSize: 11 }}>
+        <Text
+          style={{
+            width: 26,
+            textAlign: 'right',
+            color: '#9ca3af',
+            fontSize: 11,
+          }}
+        >
           {item.lost}
         </Text>
-        <Text style={{ width: 30, textAlign: 'right', color: '#9ca3af', fontSize: 11 }}>
+        <Text
+          style={{
+            width: 30,
+            textAlign: 'right',
+            color: '#9ca3af',
+            fontSize: 11,
+          }}
+        >
           {item.goalsFor}
         </Text>
-        <Text style={{ width: 30, textAlign: 'right', color: '#9ca3af', fontSize: 11 }}>
+        <Text
+          style={{
+            width: 30,
+            textAlign: 'right',
+            color: '#9ca3af',
+            fontSize: 11,
+          }}
+        >
           {item.goalsAgainst}
         </Text>
-        <Text style={{ width: 30, textAlign: 'right', color: '#9ca3af', fontSize: 11 }}>
+        <Text
+          style={{
+            width: 30,
+            textAlign: 'right',
+            color: '#9ca3af',
+            fontSize: 11,
+          }}
+        >
           {item.goalDiff}
         </Text>
 
@@ -543,7 +593,7 @@ export default function StandingsScreen() {
           alignItems: 'center',
         }}
       >
-        {/* Mode toggle */}
+        {/* Sol: Gerçek / Tahminlerim toggle */}
         <View
           style={{
             flexDirection: 'row',
@@ -556,23 +606,38 @@ export default function StandingsScreen() {
         >
           <Pressable
             onPress={() => setMode('actual')}
-            style={{
-              paddingHorizontal: 14,
-              paddingVertical: 6,
-              backgroundColor: mode === 'actual' ? '#1d4ed8' : 'transparent',
-            }}
+            style={({ pressed }) => [
+              {
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                backgroundColor:
+                  mode === 'actual' ? '#1d4ed8' : 'transparent',
+              },
+              pressed && {
+                opacity: 0.8,
+                transform: [{ scale: 0.97 }],
+              },
+            ]}
           >
             <Text style={{ color: 'white', fontSize: 13 }}>
               {tr ? 'Gerçek' : 'Actual'}
             </Text>
           </Pressable>
+
           <Pressable
             onPress={() => setMode('predicted')}
-            style={{
-              paddingHorizontal: 14,
-              paddingVertical: 6,
-              backgroundColor: mode === 'predicted' ? '#15803d' : 'transparent',
-            }}
+            style={({ pressed }) => [
+              {
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                backgroundColor:
+                  mode === 'predicted' ? '#15803d' : 'transparent',
+              },
+              pressed && {
+                opacity: 0.8,
+                transform: [{ scale: 0.97 }],
+              },
+            ]}
           >
             <Text style={{ color: 'white', fontSize: 13 }}>
               {tr ? 'Tahminlerim' : 'My Predictions'}
@@ -580,18 +645,24 @@ export default function StandingsScreen() {
           </Pressable>
         </View>
 
-        {/* Sağdaki mini butonlar */}
+        {/* Sağ: Current week / Clear */}
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Pressable
             onPress={handleJumpToCurrentRound}
-            style={{
-              paddingHorizontal: 10,
-              paddingVertical: 6,
-              borderRadius: 999,
-              borderWidth: 1,
-              borderColor: '#111827',
-              backgroundColor: '#020617',
-            }}
+            style={({ pressed }) => [
+              {
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: '#111827',
+                backgroundColor: '#020617',
+              },
+              pressed && {
+                opacity: 0.8,
+                transform: [{ scale: 0.97 }],
+              },
+            ]}
           >
             <Text style={{ color: '#e5e7eb', fontSize: 11 }}>
               {tr ? 'Güncel haftayı getir' : 'Current week'}
@@ -600,14 +671,20 @@ export default function StandingsScreen() {
 
           <Pressable
             onPress={handleClearSelections}
-            style={{
-              paddingHorizontal: 10,
-              paddingVertical: 6,
-              borderRadius: 999,
-              borderWidth: 1,
-              borderColor: '#111827',
-              backgroundColor: '#020617',
-            }}
+            style={({ pressed }) => [
+              {
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: '#111827',
+                backgroundColor: '#020617',
+              },
+              pressed && {
+                opacity: 0.8,
+                transform: [{ scale: 0.97 }],
+              },
+            ]}
           >
             <Text style={{ color: '#e5e7eb', fontSize: 11 }}>
               {tr ? 'Seçimleri temizle' : 'Clear'}
@@ -640,29 +717,91 @@ export default function StandingsScreen() {
         <Text style={{ flex: 1, color: '#6b7280', fontSize: 11 }}>
           {tr ? 'Takım' : 'Team'}
         </Text>
-        <Text style={{ width: 26, textAlign: 'right', color: '#6b7280', fontSize: 11 }}>
+        <Text
+          style={{
+            width: 26,
+            textAlign: 'right',
+            color: '#6b7280',
+            fontSize: 11,
+          }}
+        >
           P
         </Text>
-        <Text style={{ width: 26, textAlign: 'right', color: '#6b7280', fontSize: 11 }}>
+        <Text
+          style={{
+            width: 26,
+            textAlign: 'right',
+            color: '#6b7280',
+            fontSize: 11,
+          }}
+        >
           W
         </Text>
-        <Text style={{ width: 26, textAlign: 'right', color: '#6b7280', fontSize: 11 }}>
+        <Text
+          style={{
+            width: 26,
+            textAlign: 'right',
+            color: '#6b7280',
+            fontSize: 11,
+          }}
+        >
           D
         </Text>
-        <Text style={{ width: 26, textAlign: 'right', color: '#6b7280', fontSize: 11 }}>
+        <Text
+          style={{
+            width: 26,
+            textAlign: 'right',
+            color: '#6b7280',
+            fontSize: 11,
+          }}
+        >
           L
         </Text>
-        <Text style={{ width: 30, textAlign: 'right', color: '#6b7280', fontSize: 11 }}>
+        <Text
+          style={{
+            width: 30,
+            textAlign: 'right',
+            color: '#6b7280',
+            fontSize: 11,
+          }}
+        >
           GF
         </Text>
-        <Text style={{ width: 30, textAlign: 'right', color: '#6b7280', fontSize: 11 }}>
+        <Text
+          style={{
+            width: 30,
+            textAlign: 'right',
+            color: '#6b7280',
+            fontSize: 11,
+          }}
+        >
           GA
         </Text>
-        <Text style={{ width: 30, textAlign: 'right', color: '#6b7280', fontSize: 11 }}>
+        <Text
+          style={{
+            width: 30,
+            textAlign: 'right',
+            color: '#6b7280',
+            fontSize: 11,
+          }}
+        >
           GD
         </Text>
-        <Text style={{ width: 40, textAlign: 'right', color: '#6b7280', fontSize: 11 }}>
-          {mode === 'actual' ? (tr ? 'Puan' : 'Pts') : (tr ? 'Tah.' : 'Pred')}
+        <Text
+          style={{
+            width: 40,
+            textAlign: 'right',
+            color: '#6b7280',
+            fontSize: 11,
+          }}
+        >
+          {mode === 'actual'
+            ? tr
+              ? 'Puan'
+              : 'Pts'
+            : tr
+            ? 'Tah.'
+            : 'Pred'}
         </Text>
       </View>
 

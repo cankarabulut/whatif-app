@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { getFixtures } from '../api/fixtures';
 import LeaguePicker from '../components/LeaguePicker';
@@ -54,7 +55,9 @@ function computeTargetRound(rounds, matches, league, season) {
 }
 
 export default function FixturesScreen() {
-  const { league, season, round, setLeagueSeason, setRound, lang } = useAppState();
+  const { league, season, round, setLeagueSeason, setRound, lang } =
+    useAppState();
+
   const [fixtures, setFixtures] = useState([]);
   const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +72,27 @@ export default function FixturesScreen() {
     load(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [league, season]);
+
+  // ekran fokuslandığında tahmin state'lerini yenile
+  useFocusEffect(
+    React.useCallback(() => {
+      let active = true;
+
+      (async () => {
+        try {
+          const storedStates = await getFixturePredictions(league.id, season);
+          if (!active) return;
+          setFixtureStates(storedStates || {});
+        } catch (e) {
+          console.log('Fixtures predictions refresh error', e);
+        }
+      })();
+
+      return () => {
+        active = false;
+      };
+    }, [league.id, season])
+  );
 
   async function load(initial) {
     if (initial) setLoading(true);
@@ -181,7 +205,7 @@ export default function FixturesScreen() {
 
     const targetRound = computeTargetRound(rounds, fixtures, league, season);
     if (targetRound != null) {
-      setRound(targetRound);
+      setRound(targetRound); // global round
     }
   };
 
@@ -210,7 +234,6 @@ export default function FixturesScreen() {
         lang={lang}
       />
 
-      {/* Güncel hafta + seçimleri temizle */}
       <View
         style={{
           paddingHorizontal: 16,
@@ -223,14 +246,20 @@ export default function FixturesScreen() {
       >
         <Pressable
           onPress={handleJumpToCurrentRound}
-          style={{
-            paddingHorizontal: 10,
-            paddingVertical: 6,
-            borderRadius: 999,
-            borderWidth: 1,
-            borderColor: '#111827',
-            backgroundColor: '#020617',
-          }}
+          style={({ pressed }) => [
+            {
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: '#111827',
+              backgroundColor: '#020617',
+            },
+            pressed && {
+              opacity: 0.8,
+              transform: [{ scale: 0.97 }],
+            },
+          ]}
         >
           <Text style={{ color: '#e5e7eb', fontSize: 11 }}>
             {tr ? 'Güncel haftayı getir' : 'Current week'}
@@ -239,14 +268,20 @@ export default function FixturesScreen() {
 
         <Pressable
           onPress={handleClearSelections}
-          style={{
-            paddingHorizontal: 10,
-            paddingVertical: 6,
-            borderRadius: 999,
-            borderWidth: 1,
-            borderColor: '#111827',
-            backgroundColor: '#020617',
-          }}
+          style={({ pressed }) => [
+            {
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: '#111827',
+              backgroundColor: '#020617',
+            },
+            pressed && {
+              opacity: 0.8,
+              transform: [{ scale: 0.97 }],
+            },
+          ]}
         >
           <Text style={{ color: '#e5e7eb', fontSize: 11 }}>
             {tr ? 'Temizle' : 'Clear selections'}
@@ -266,8 +301,12 @@ export default function FixturesScreen() {
               selectedOutcome={st.outcome}
               score={{ home: st.home, away: st.away }}
               onSelectOutcome={(opt) => handleSelectOutcome(item, opt)}
-              onChangeHomeScore={(txt) => handleChangeScore(item, 'home', txt)}
-              onChangeAwayScore={(txt) => handleChangeScore(item, 'away', txt)}
+              onChangeHomeScore={(txt) =>
+                handleChangeScore(item, 'home', txt)
+              }
+              onChangeAwayScore={(txt) =>
+                handleChangeScore(item, 'away', txt)
+              }
             />
           );
         }}
