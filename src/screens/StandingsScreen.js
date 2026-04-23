@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getFixtures } from '../api/fixtures';
+import { getRounds } from '../api/rounds';
 import LeaguePicker from '../components/LeaguePicker';
 import RoundPicker from '../components/RoundPicker';
 import TeamLogo from '../components/TeamLogo';
@@ -232,6 +233,7 @@ export default function StandingsScreen() {
   const [rounds, setRounds] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [mode, setMode] = useState('actual'); // 'actual' | 'predicted'
+  const [error, setError] = useState('');
 
   const tr = lang === 'tr';
 
@@ -241,6 +243,7 @@ export default function StandingsScreen() {
 
   async function loadAll(initial) {
     if (initial) setRefreshing(true);
+    setError('');
     try {
       // Fikstürleri cache'ten oku
       const cached = await getCachedFixtures(league.id, season);
@@ -250,28 +253,43 @@ export default function StandingsScreen() {
       }
 
       // Fikstürleri API'den çek
-      const fresh = await getFixtures({
-        league: league.id,
-        season,
-      });
+      const [roundMeta, fresh] = await Promise.all([
+        getRounds({
+          league: league.id,
+          season,
+        }),
+        getFixtures({
+          league: league.id,
+          season,
+        }),
+      ]);
       setFixtures(fresh);
       await setCachedFixtures(league.id, season, fresh);
-      setupRounds(fresh);
+      setupRounds(fresh, roundMeta);
 
       // Tahmin state'lerini oku
       const storedStates = await getFixturePredictions(league.id, season);
       setFixtureStates(storedStates || {});
     } catch (e) {
       console.log('Standings load error', e);
+      setError(
+        tr
+          ? 'Puan durumu yüklenemedi. Lütfen tekrar deneyin.'
+          : 'Standings failed to load. Please retry.'
+      );
     } finally {
       setRefreshing(false);
     }
   }
 
-  function setupRounds(matches) {
-    const rs = Array.from(new Set(matches.map((m) => m.round))).sort(
+  function setupRounds(matches, roundMeta = null) {
+    const fallbackRounds = Array.from(new Set(matches.map((m) => m.round))).sort(
       (a, b) => a - b
     );
+    const rs =
+      roundMeta?.rounds && roundMeta.rounds.length
+        ? roundMeta.rounds
+        : fallbackRounds;
     setRounds(rs);
 
     if (!rs.length) {
@@ -279,7 +297,8 @@ export default function StandingsScreen() {
       return;
     }
 
-    const initialRound = computeInitialRound(matches, league, season, round);
+    const initialRound =
+      roundMeta?.active ?? computeInitialRound(matches, league, season, round);
 
     // İlk yüklemede veya invalid durumda güncel haftaya al
     if (round == null || !rs.includes(round)) {
@@ -692,6 +711,12 @@ export default function StandingsScreen() {
           </Pressable>
         </View>
       </View>
+
+      {error ? (
+        <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+          <Text style={{ color: '#fca5a5', textAlign: 'center' }}>{error}</Text>
+        </View>
+      ) : null}
 
       {/* Header */}
       <View

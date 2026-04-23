@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { getFixtures } from '../api/fixtures';
+import { getRounds } from '../api/rounds';
 import LeaguePicker from '../components/LeaguePicker';
 import MatchCard from '../components/MatchCard';
 import RoundPicker from '../components/RoundPicker';
@@ -62,6 +63,7 @@ export default function FixturesScreen() {
   const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
 
   // matchId -> { outcome: '1'|'X'|'2'|null, home: number|null, away: number|null }
   const [fixtureStates, setFixtureStates] = useState({});
@@ -96,6 +98,7 @@ export default function FixturesScreen() {
 
   async function load(initial) {
     if (initial) setLoading(true);
+    setError('');
 
     try {
       const storedStates = await getFixturePredictions(league.id, season);
@@ -107,26 +110,41 @@ export default function FixturesScreen() {
         setupRounds(cached);
       }
 
-      const fresh = await getFixtures({
-        league: league.id,
-        season,
-      });
+      const [roundMeta, fresh] = await Promise.all([
+        getRounds({
+          league: league.id,
+          season,
+        }),
+        getFixtures({
+          league: league.id,
+          season,
+        }),
+      ]);
 
       setFixtures(fresh);
-      setupRounds(fresh);
+      setupRounds(fresh, roundMeta);
       await setCachedFixtures(league.id, season, fresh);
     } catch (e) {
       console.log('Fixtures load error', e);
+      setError(
+        tr
+          ? 'Veri alınamadı. Lütfen tekrar deneyin.'
+          : 'Failed to load data. Please retry.'
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }
 
-  function setupRounds(matches) {
-    const rs = Array.from(new Set(matches.map((m) => m.round))).sort(
+  function setupRounds(matches, roundMeta = null) {
+    const fallbackRounds = Array.from(new Set(matches.map((m) => m.round))).sort(
       (a, b) => a - b
     );
+    const rs =
+      roundMeta?.rounds && roundMeta.rounds.length
+        ? roundMeta.rounds
+        : fallbackRounds;
     setRounds(rs);
 
     if (!rs.length) {
@@ -134,7 +152,8 @@ export default function FixturesScreen() {
       return;
     }
 
-    const initialRound = computeTargetRound(rs, matches, league, season);
+    const initialRound =
+      roundMeta?.active ?? computeTargetRound(rs, matches, league, season);
 
     if (initialRound != null && (round == null || !rs.includes(round))) {
       setRound(initialRound);
@@ -288,6 +307,12 @@ export default function FixturesScreen() {
           </Text>
         </Pressable>
       </View>
+
+      {error ? (
+        <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+          <Text style={{ color: '#fca5a5', textAlign: 'center' }}>{error}</Text>
+        </View>
+      ) : null}
 
       <FlatList
         data={filtered}
