@@ -39,16 +39,7 @@ async function handleResponse(res) {
       statusText: res.statusText,
       body,
     });
-    const bodyMessage =
-      (body && typeof body === 'object' && (body.error || body.message)) || null;
-    const err = new Error(bodyMessage || `HTTP ${res.status}`);
-    err.status = res.status;
-    err.body = body;
-    throw err;
-  }
-
-  if (body && typeof body === 'object' && body.ok === false) {
-    const err = new Error(body.error || 'API request failed');
+    const err = new Error(`HTTP ${res.status}`);
     err.status = res.status;
     err.body = body;
     throw err;
