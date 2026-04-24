@@ -2,6 +2,11 @@ import React from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import TeamLogo from './TeamLogo';
 
+function isFinishedStatus(status) {
+  const s = String(status || '').toUpperCase();
+  return ['FINISHED', 'FT', 'AET', 'PEN'].includes(s);
+}
+
 export default function MatchCard({
   fixture,
   selectedOutcome,
@@ -17,7 +22,7 @@ export default function MatchCard({
   const scoreAwayActual = fixture.score?.fullTime?.away ?? null;
 
   const hasScore =
-    fixture.status === 'FINISHED' &&
+    isFinishedStatus(fixture.status) &&
     typeof scoreHomeActual === 'number' &&
     typeof scoreAwayActual === 'number';
 

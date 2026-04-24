@@ -31,6 +31,11 @@ function getOutcomeFromScore(home, away) {
   return 'X';
 }
 
+function isFinishedStatus(status) {
+  const s = String(status || '').toUpperCase();
+  return ['FINISHED', 'FT', 'AET', 'PEN'].includes(s);
+}
+
 // Seçili haftaya kadar GERÇEK puan durumu hesapla
 function computeActualTable(fixtures, roundLimit) {
   const teams = new Map();
@@ -60,7 +65,7 @@ function computeActualTable(fixtures, roundLimit) {
   fixtures.forEach((fx) => {
     if (roundLimit != null && fx.round > roundLimit) return;
 
-    if (fx.status !== 'FINISHED') return;
+    if (!isFinishedStatus(fx.status)) return;
 
     const home = fx.home;
     const away = fx.away;
@@ -155,7 +160,7 @@ function computePredictionDeltas(fixtures, fixtureStates, roundLimit) {
     const fullHome = fx.score?.fullTime?.home;
     const fullAway = fx.score?.fullTime?.away;
     const actualOutcome =
-      fx.status === 'FINISHED'
+      isFinishedStatus(fx.status)
         ? getOutcomeFromScore(fullHome, fullAway)
         : null;
 
@@ -187,7 +192,7 @@ function computeInitialRound(matches, league, season, currentRound) {
   if (!rs.length) return null;
 
   const finishedRounds = matches
-    .filter((m) => m.status === 'FINISHED')
+    .filter((m) => isFinishedStatus(m.status))
     .map((m) => m.round);
   const maxFinished = finishedRounds.length
     ? Math.max(...finishedRounds)
@@ -401,8 +406,6 @@ export default function StandingsScreen() {
     });
   }, [predDeltas, actualRankByTeam, predictedRankByTeam]);
 
-  const showMovementColumn = mode === 'predicted' && hasMeaningfulPredictions;
-
   const data = mode === 'actual' ? actualSorted : predictedSorted;
 
   const handleClearSelections = async () => {
@@ -432,7 +435,7 @@ export default function StandingsScreen() {
     let arrow = null;
     let arrowColor = '#9ca3af';
 
-    if (mode === 'predicted' && showMovementColumn) {
+    if (mode === 'predicted' && hasMeaningfulPredictions) {
       if (predRank < baseRank) {
         arrow = '↑';
         arrowColor = '#22c55e';
@@ -454,44 +457,14 @@ export default function StandingsScreen() {
         }}
       >
         {/* soldaki sıra: mod'a göre */}
-        <Text style={{ width: 24, color: '#9ca3af', fontSize: 12 }}>
+        <Text style={{ width: 32, color: '#9ca3af', fontSize: 12 }}>
           {currentRank}
+          {arrow ? (
+            <Text style={{ color: arrowColor, fontSize: 12, fontWeight: '700' }}>
+              {' '}{arrow}
+            </Text>
+          ) : null}
         </Text>
-
-        {/* Ok + eski sıra (her zaman gerçek), sadece anlamlı tahmin varsa */}
-        <View
-          style={{
-            width: showMovementColumn ? 34 : 0,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginRight: showMovementColumn ? 4 : 0,
-          }}
-        >
-          {mode === 'predicted' && showMovementColumn && arrow && (
-            <>
-              <Text
-                style={{
-                  color: arrowColor,
-                  fontSize: 12,
-                  fontWeight: '700',
-                  marginRight: 2,
-                }}
-              >
-                {arrow}
-              </Text>
-              <Text
-                style={{
-                  color: '#e5e7eb',
-                  fontSize: 11,
-                  fontWeight: '600',
-                }}
-              >
-                {baseRank}
-              </Text>
-            </>
-          )}
-        </View>
 
         <TeamLogo name={item.team} size={22} />
         <Text style={{ flex: 1, color: '#e5e7eb', fontSize: 13 }}>
@@ -728,16 +701,7 @@ export default function StandingsScreen() {
           borderColor: '#111827',
         }}
       >
-        <Text style={{ width: 24, color: '#6b7280', fontSize: 11 }}>#</Text>
-        <Text
-          style={{
-            width: showMovementColumn ? 34 : 0,
-            color: '#6b7280',
-            fontSize: 11,
-          }}
-        >
-          {showMovementColumn ? (tr ? 'Eski' : 'From') : ''}
-        </Text>
+        <Text style={{ width: 32, color: '#6b7280', fontSize: 11 }}>#</Text>
         <Text style={{ width: 22 }} />
         <Text style={{ flex: 1, color: '#6b7280', fontSize: 11 }}>
           {tr ? 'Takım' : 'Team'}

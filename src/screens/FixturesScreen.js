@@ -23,11 +23,16 @@ import {
   setFixturePredictions,
 } from '../storage/cache';
 
+function isFinishedStatus(status) {
+  const s = String(status || '').toUpperCase();
+  return ['FINISHED', 'FT', 'AET', 'PEN'].includes(s);
+}
+
 function computeTargetRound(rounds, matches, league, season) {
   if (!rounds.length || !matches.length) return null;
 
   const finishedRounds = matches
-    .filter((m) => m.status === 'FINISHED')
+    .filter((m) => isFinishedStatus(m.status))
     .map((m) => m.round);
   const maxFinished = finishedRounds.length
     ? Math.max(...finishedRounds)
