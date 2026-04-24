@@ -9,10 +9,8 @@ export function AppStateProvider({ children }) {
   const [season, internalSetSeason] = useState(
     DEFAULT_LEAGUE.seasons[DEFAULT_LEAGUE.seasons.length - 1]
   );
-  const [round, setRound] = useState(null);
-  const [activeRound, setActiveRound] = useState(null);
-  const [seasonActive, setSeasonActive] = useState(false);
-  const [lang, setLang] = useState('tr');
+  const [round, setRound] = useState(null); // ortak "hafta"
+  const [lang, setLang] = useState('en'); // 'en' | 'tr'
 
   const setLeagueSeason = ({ league: lg, season: s }) => {
     const nextLeague = lg || league;
@@ -26,9 +24,8 @@ export function AppStateProvider({ children }) {
 
     internalSetLeague(nextLeague);
     internalSetSeason(nextSeason);
+    // Lig veya sezon değişince haftayı yeniden belirleyeceğiz
     setRound(null);
-    setActiveRound(null);
-    setSeasonActive(false);
   };
 
   const toggleLang = () => {
@@ -39,19 +36,17 @@ export function AppStateProvider({ children }) {
     league,
     season,
     round,
-    activeRound,
-    seasonActive,
     lang,
     setLeagueSeason,
     setRound,
-    setActiveRound,
-    setSeasonActive,
     setLang,
     toggleLang,
   };
 
   return (
-    <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>
+    <AppStateContext.Provider value={value}>
+      {children}
+    </AppStateContext.Provider>
   );
 }
 

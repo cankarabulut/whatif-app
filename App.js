@@ -1,12 +1,8 @@
 // App.js
-import './global.css';
-
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import { Ionicons } from '@expo/vector-icons';
 
 import { AppStateProvider, useAppState } from './src/context/AppStateContext';
 import FixturesScreen from './src/screens/FixturesScreen';
@@ -20,33 +16,12 @@ function TabNavigator() {
 
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: '#0F1522',
-          borderTopColor: '#1F2A3C',
-          height: 62,
-          paddingTop: 6,
-          paddingBottom: 8,
-        },
-        tabBarActiveTintColor: '#F97316',
-        tabBarInactiveTintColor: '#5F6B82',
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
-        tabBarIcon: ({ color, focused }) => {
-          const name =
-            route.name === 'Fixtures'
-              ? focused
-                ? 'football'
-                : 'football-outline'
-              : focused
-              ? 'podium'
-              : 'podium-outline';
-          return <Ionicons name={name} size={22} color={color} />;
-        },
-      })}
+        tabBarStyle: { backgroundColor: '#020617', borderTopColor: '#111827' },
+        tabBarActiveTintColor: '#f97316',
+        tabBarInactiveTintColor: '#6b7280',
+      }}
     >
       <Tab.Screen
         name="Fixtures"
@@ -67,7 +42,6 @@ export default function App() {
     <SafeAreaProvider>
       <AppStateProvider>
         <NavigationContainer>
-          <StatusBar style="light" />
           <TabNavigator />
         </NavigationContainer>
       </AppStateProvider>

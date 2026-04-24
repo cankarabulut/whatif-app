@@ -1,97 +1,198 @@
 // src/components/RoundPicker.js
-import React, { useEffect, useRef } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import {
+    FlatList,
+    Modal,
+    Pressable,
+    Text,
+    TouchableWithoutFeedback,
+    View,
+} from 'react-native';
 
-const PILL_WIDTH = 68;
-
-export default function RoundPicker({ rounds, round, activeRound, onChange, lang }) {
+export default function RoundPicker({ rounds, round, onChange, lang }) {
+  const [modalVisible, setModalVisible] = useState(false);
   const tr = lang === 'tr';
-  const scrollRef = useRef(null);
-  const idx = rounds.indexOf(round);
-  const canPrev = idx > 0;
-  const canNext = idx >= 0 && idx < rounds.length - 1;
-  const isAtActive = activeRound != null && round === activeRound;
 
-  useEffect(() => {
-    if (!scrollRef.current || idx < 0) return;
-    const x = Math.max(0, (idx - 2) * (PILL_WIDTH + 8));
-    scrollRef.current.scrollTo({ x, animated: true });
-  }, [idx]);
+  const label = round ? `${tr ? 'Hafta' : 'Week'} ${round}` : tr ? 'Hafta' : 'Week';
 
-  const go = (delta) => {
-    const next = rounds[idx + delta];
-    if (next != null) onChange(next);
+  const canPrev = round != null && rounds.indexOf(round) > 0;
+  const canNext =
+    round != null && rounds.indexOf(round) >= 0 && rounds.indexOf(round) < rounds.length - 1;
+
+  const handleSelectRound = (r) => {
+    setModalVisible(false);
+    onChange(r);
   };
 
   return (
-    <View className="px-4 py-2">
-      <View className="flex-row items-center gap-2">
+    <>
+      <View
+        style={{
+          flexDirection: 'row',
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+        }}
+      >
+        {/* Prev button */}
         <Pressable
-          onPress={() => go(-1)}
+          onPress={() => {
+            if (!canPrev) return;
+            const idx = rounds.indexOf(round);
+            if (idx > 0) onChange(rounds[idx - 1]);
+          }}
           disabled={!canPrev}
-          className={`h-9 w-9 rounded-full border border-border bg-surface-muted items-center justify-center ${
-            canPrev ? '' : 'opacity-40'
-          }`}
+          style={{
+            width: 40,
+            height: 32,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: '#111827',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: canPrev ? 1 : 0.4,
+            backgroundColor: '#020617',
+          }}
         >
-          <Ionicons name="chevron-back" size={16} color="#E5E7EB" />
+          <Text style={{ color: '#e5e7eb', fontSize: 16 }}>{'<'}</Text>
         </Pressable>
 
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}
-          className="flex-1"
-        >
-          {rounds.map((r) => {
-            const active = r === round;
-            const isActivePointer = activeRound != null && r === activeRound;
-            return (
-              <Pressable
-                key={String(r)}
-                onPress={() => onChange(r)}
-                className={`min-w-[68px] px-3 py-1.5 rounded-full border items-center ${
-                  active
-                    ? 'bg-brand border-brand'
-                    : 'border-border bg-surface-muted'
-                }`}
-              >
-                <Text
-                  className={`text-xs font-bold ${active ? 'text-white' : 'text-fg'}`}
-                >
-                  {tr ? `H${r}` : `R${r}`}
-                </Text>
-                {isActivePointer && !active && (
-                  <View className="h-1 w-1 rounded-full bg-brand mt-0.5" />
-                )}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
+        {/* Label + dropdown */}
         <Pressable
-          onPress={() => go(1)}
-          disabled={!canNext}
-          className={`h-9 w-9 rounded-full border border-border bg-surface-muted items-center justify-center ${
-            canNext ? '' : 'opacity-40'
-          }`}
+          onPress={() => {
+            if (!rounds.length) return;
+            setModalVisible(true);
+          }}
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: '#111827',
+            backgroundColor: '#020617',
+            paddingVertical: 8,
+            paddingHorizontal: 16,
+          }}
         >
-          <Ionicons name="chevron-forward" size={16} color="#E5E7EB" />
+          <Text
+            style={{
+              color: '#e5e7eb',
+              fontSize: 14,
+              marginRight: 4,
+            }}
+          >
+            {label}
+          </Text>
+          <Text style={{ color: '#9ca3af', fontSize: 12 }}>▼</Text>
+        </Pressable>
+
+        {/* Next button */}
+        <Pressable
+          onPress={() => {
+            if (!canNext) return;
+            const idx = rounds.indexOf(round);
+            if (idx < rounds.length - 1) onChange(rounds[idx + 1]);
+          }}
+          disabled={!canNext}
+          style={{
+            width: 40,
+            height: 32,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: '#111827',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: canNext ? 1 : 0.4,
+            backgroundColor: '#020617',
+          }}
+        >
+          <Text style={{ color: '#e5e7eb', fontSize: 16 }}>{'>'}</Text>
         </Pressable>
       </View>
 
-      {activeRound != null && !isAtActive && (
-        <Pressable
-          onPress={() => onChange(activeRound)}
-          className="mt-2 self-center flex-row items-center gap-1.5 px-3 py-1 rounded-full bg-brand/15 border border-brand/30"
-        >
-          <Ionicons name="locate-outline" size={12} color="#F97316" />
-          <Text className="text-brand text-[11px] font-semibold">
-            {tr ? `Bu hafta · ${activeRound}` : `Current · ${activeRound}`}
-          </Text>
-        </Pressable>
-      )}
-    </View>
+      {/* Dropdown modal */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(15,23,42,0.75)',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <TouchableWithoutFeedback>
+              <View
+                style={{
+                  backgroundColor: '#020617',
+                  paddingHorizontal: 16,
+                  paddingTop: 12,
+                  paddingBottom: 24,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                  maxHeight: '50%',
+                }}
+              >
+                <Text
+                  style={{
+                    color: '#9ca3af',
+                    fontSize: 13,
+                    marginBottom: 8,
+                  }}
+                >
+                  {tr ? 'Hafta seç' : 'Select week'}
+                </Text>
+
+                <FlatList
+                  data={rounds}
+                  keyExtractor={(item) => String(item)}
+                  renderItem={({ item }) => {
+                    const isActive = item === round;
+                    return (
+                      <Pressable
+                        onPress={() => handleSelectRound(item)}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          paddingVertical: 10,
+                          borderBottomWidth: 1,
+                          borderBottomColor: '#0f172a',
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: 999,
+                            backgroundColor: isActive ? '#f97316' : '#4b5563',
+                            marginRight: 8,
+                          }}
+                        />
+                        <Text
+                          style={{
+                            color: isActive ? '#f97316' : '#e5e7eb',
+                            fontSize: 14,
+                          }}
+                        >
+                          {tr ? `Hafta ${item}` : `Week ${item}`}
+                        </Text>
+                      </Pressable>
+                    );
+                  }}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </>
   );
 }

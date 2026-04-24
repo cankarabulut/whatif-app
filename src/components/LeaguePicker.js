@@ -1,4 +1,3 @@
-// src/components/LeaguePicker.js
 import React, { useMemo, useState } from 'react';
 import {
   FlatList,
@@ -8,15 +7,13 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { LEAGUES } from '../constants/leagues';
 import { useAppState } from '../context/AppStateContext';
 
 function formatSeasonLabel(season) {
-  if (season == null) return 'Season';
-  const y = parseInt(season, 10);
-  if (Number.isFinite(y)) {
-    return `${y}/${String((y + 1) % 100).padStart(2, '0')}`;
+  if (!season && season !== 0) return 'Season';
+  if (typeof season === 'number') {
+    return `${season}`;
   }
   return String(season);
 }
@@ -25,20 +22,33 @@ export default function LeaguePicker({ selectedLeague, season, onChange }) {
   const [leagueModalVisible, setLeagueModalVisible] = useState(false);
   const [seasonModalVisible, setSeasonModalVisible] = useState(false);
 
-  const { lang } = useAppState();
+  const { lang, toggleLang } = useAppState();
   const tr = lang === 'tr';
 
   const currentLeague = selectedLeague || LEAGUES[0];
-  const seasons = useMemo(() => currentLeague.seasons || [], [currentLeague]);
+
+  const seasons = useMemo(
+    () => currentLeague.seasons || [],
+    [currentLeague]
+  );
+
+  const leagueLabel =
+    currentLeague.shortName || currentLeague.name || (tr ? 'Lig Seç' : 'Select league');
+  const seasonLabel = formatSeasonLabel(season);
 
   const handleSelectLeague = (league) => {
     setLeagueModalVisible(false);
+
     const leagueSeasons = league.seasons || [];
     let nextSeason = season;
+
     if (!leagueSeasons.includes(nextSeason)) {
       nextSeason =
-        leagueSeasons.length > 0 ? leagueSeasons[leagueSeasons.length - 1] : null;
+        leagueSeasons.length > 0
+          ? leagueSeasons[leagueSeasons.length - 1]
+          : null;
     }
+
     onChange({ league, season: nextSeason });
   };
 
@@ -49,102 +59,254 @@ export default function LeaguePicker({ selectedLeague, season, onChange }) {
 
   return (
     <>
-      <View className="flex-row px-4 py-2 gap-2">
+      {/* Üst bar: League + Season + dil switch */}
+      <View
+        style={{
+          flexDirection: 'row',
+          paddingHorizontal: 16,
+          paddingTop: 8,
+          paddingBottom: 4,
+          alignItems: 'center',
+        }}
+      >
+        {/* League dropdown */}
         <Pressable
           onPress={() => setLeagueModalVisible(true)}
-          className="flex-[2] flex-row items-center justify-between rounded-xl border border-border bg-surface-muted px-3 py-2.5 active:bg-surface-hover"
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: '#020617',
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: '#111827',
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            marginRight: 8,
+          }}
         >
-          <View className="flex-row items-center gap-2 flex-1">
-            <Ionicons name="football-outline" size={14} color="#9CA7BE" />
-            <Text className="text-fg text-sm font-semibold flex-1" numberOfLines={1}>
-              {currentLeague.name}
-            </Text>
-          </View>
-          <Ionicons name="chevron-down" size={14} color="#9CA7BE" />
+          <Text
+            style={{
+              color: '#e5e7eb',
+              fontSize: 13,
+            }}
+            numberOfLines={1}
+          >
+            {leagueLabel}
+          </Text>
+          <Text style={{ color: '#9ca3af', fontSize: 12 }}>▼</Text>
         </Pressable>
 
+        {/* Season dropdown */}
         <Pressable
           onPress={() => setSeasonModalVisible(true)}
-          className="w-[110px] flex-row items-center justify-between rounded-xl border border-border bg-surface-muted px-3 py-2.5 active:bg-surface-hover"
+          style={{
+            width: 110,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: '#020617',
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: '#111827',
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            marginRight: 8,
+          }}
         >
-          <Text className="text-fg text-sm font-semibold">
-            {formatSeasonLabel(season)}
+          <Text
+            style={{
+              color: '#e5e7eb',
+              fontSize: 13,
+            }}
+          >
+            {seasonLabel}
           </Text>
-          <Ionicons name="chevron-down" size={14} color="#9CA7BE" />
+          <Text style={{ color: '#9ca3af', fontSize: 12 }}>▼</Text>
+        </Pressable>
+
+        {/* Dil toggle */}
+        <Pressable
+          onPress={toggleLang}
+          style={{
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: '#111827',
+            backgroundColor: '#020617',
+          }}
+        >
+          <Text style={{ color: '#e5e7eb', fontSize: 12 }}>
+            {tr ? 'TR' : 'EN'}
+          </Text>
         </Pressable>
       </View>
 
-      <PickerModal
+      {/* League seçimi için modal */}
+      <Modal
         visible={leagueModalVisible}
-        title={tr ? 'Lig Seç' : 'Select League'}
-        onClose={() => setLeagueModalVisible(false)}
-        data={LEAGUES}
-        keyExtractor={(item) => item.id}
-        renderLabel={(item) => item.name}
-        isActive={(item) => item.id === currentLeague.id}
-        onSelect={handleSelectLeague}
-      />
-
-      <PickerModal
-        visible={seasonModalVisible}
-        title={tr ? 'Sezon Seç' : 'Select Season'}
-        onClose={() => setSeasonModalVisible(false)}
-        data={seasons.slice().sort((a, b) => b - a)}
-        keyExtractor={(item) => String(item)}
-        renderLabel={(item) => formatSeasonLabel(item)}
-        isActive={(item) => item === season}
-        onSelect={handleSelectSeason}
-      />
-    </>
-  );
-}
-
-function PickerModal({
-  visible,
-  title,
-  onClose,
-  data,
-  keyExtractor,
-  renderLabel,
-  isActive,
-  onSelect,
-}) {
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View className="flex-1 bg-black/70 justify-end">
-          <TouchableWithoutFeedback>
-            <View className="bg-surface rounded-t-3xl border-t border-border-strong px-4 pt-3 pb-8 max-h-[60%]">
-              <View className="h-1 w-10 rounded-full bg-border-strong self-center mb-3" />
-              <Text className="text-fg-muted text-xs uppercase tracking-widest mb-2">
-                {title}
-              </Text>
-              <FlatList
-                data={data}
-                keyExtractor={keyExtractor}
-                renderItem={({ item }) => {
-                  const active = isActive(item);
-                  return (
-                    <Pressable
-                      onPress={() => onSelect(item)}
-                      className={`flex-row items-center justify-between py-3 px-3 rounded-xl mb-1 ${
-                        active ? 'bg-brand/15 border border-brand/30' : 'border border-transparent'
-                      }`}
-                    >
-                      <Text
-                        className={`text-sm ${active ? 'text-brand font-semibold' : 'text-fg'}`}
-                      >
-                        {renderLabel(item)}
-                      </Text>
-                      {active && <Ionicons name="checkmark" size={16} color="#F97316" />}
-                    </Pressable>
-                  );
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLeagueModalVisible(false)}
+      >
+        <TouchableWithoutFeedback
+          onPress={() => setLeagueModalVisible(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(15,23,42,0.75)',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <TouchableWithoutFeedback>
+              <View
+                style={{
+                  backgroundColor: '#020617',
+                  paddingHorizontal: 16,
+                  paddingTop: 12,
+                  paddingBottom: 24,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                  maxHeight: '60%',
                 }}
-              />
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+              >
+                <Text
+                  style={{
+                    color: '#9ca3af',
+                    fontSize: 13,
+                    marginBottom: 8,
+                  }}
+                >
+                  {tr ? 'Lig Seç' : 'Select League'}
+                </Text>
+
+                <FlatList
+                  data={LEAGUES}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => {
+                    const isActive = item.id === currentLeague.id;
+                    return (
+                      <Pressable
+                        onPress={() => handleSelectLeague(item)}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          paddingVertical: 10,
+                          borderBottomWidth: 1,
+                          borderBottomColor: '#0f172a',
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: 999,
+                            backgroundColor: isActive ? '#f97316' : '#4b5563',
+                            marginRight: 8,
+                          }}
+                        />
+                        <Text
+                          style={{
+                            color: isActive ? '#f97316' : '#e5e7eb',
+                            fontSize: 14,
+                          }}
+                        >
+                          {item.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  }}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Season seçimi için modal */}
+      <Modal
+        visible={seasonModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSeasonModalVisible(false)}
+      >
+        <TouchableWithoutFeedback
+          onPress={() => setSeasonModalVisible(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(15,23,42,0.75)',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <TouchableWithoutFeedback>
+              <View
+                style={{
+                  backgroundColor: '#020617',
+                  paddingHorizontal: 16,
+                  paddingTop: 12,
+                  paddingBottom: 24,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                  maxHeight: '50%',
+                }}
+              >
+                <Text
+                  style={{
+                    color: '#9ca3af',
+                    fontSize: 13,
+                    marginBottom: 8,
+                  }}
+                >
+                  {tr ? 'Sezon Seç' : 'Select Season'}
+                </Text>
+
+                <FlatList
+                  data={seasons.slice().sort((a, b) => b - a)}
+                  keyExtractor={(item) => String(item)}
+                  renderItem={({ item }) => {
+                    const isActive = item === season;
+                    return (
+                      <Pressable
+                        onPress={() => handleSelectSeason(item)}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          paddingVertical: 10,
+                          borderBottomWidth: 1,
+                          borderBottomColor: '#0f172a',
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: 999,
+                            backgroundColor: isActive ? '#f97316' : '#4b5563',
+                            marginRight: 8,
+                          }}
+                        />
+                        <Text
+                          style={{
+                            color: isActive ? '#f97316' : '#e5e7eb',
+                            fontSize: 14,
+                          }}
+                        >
+                          {formatSeasonLabel(item)}
+                        </Text>
+                      </Pressable>
+                    );
+                  }}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </>
   );
 }

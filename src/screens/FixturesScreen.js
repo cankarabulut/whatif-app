@@ -1,16 +1,20 @@
 // src/screens/FixturesScreen.js
 import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import {
+  FlatList,
+  Pressable,
+  RefreshControl,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 
-import AppHeader from '../components/AppHeader';
+import { getFixtures } from '../api/fixtures';
+import { getRounds } from '../api/rounds';
 import LeaguePicker from '../components/LeaguePicker';
 import MatchCard from '../components/MatchCard';
 import RoundPicker from '../components/RoundPicker';
-import { getFixtures } from '../api/fixtures';
-import { getRounds } from '../api/rounds';
 import { useAppState } from '../context/AppStateContext';
 import {
   getCachedFixtures,
@@ -19,24 +23,49 @@ import {
   setFixturePredictions,
 } from '../storage/cache';
 
+function computeTargetRound(rounds, matches, league, season) {
+  if (!rounds.length || !matches.length) return null;
+
+  const finishedRounds = matches
+    .filter((m) => m.status === 'FINISHED')
+    .map((m) => m.round);
+  const maxFinished = finishedRounds.length
+    ? Math.max(...finishedRounds)
+    : null;
+
+  const leagueSeasons = league.seasons || [];
+  const latestSeason = leagueSeasons[leagueSeasons.length - 1];
+  const isCurrentSeason = season === latestSeason;
+
+  if (isCurrentSeason) {
+    if (maxFinished == null) {
+      // güncel sezon; hiç maç oynanmamış → ilk hafta
+      return rounds[0];
+    }
+    const idx = rounds.indexOf(maxFinished);
+    if (idx >= 0 && idx < rounds.length - 1) {
+      // sıradaki aktif hafta
+      return rounds[idx + 1];
+    }
+    // sezon bitmiş → son oynanan hafta
+    return maxFinished;
+  }
+
+  // geçmiş sezon → son oynanan hafta, o da yoksa son hafta
+  return maxFinished || rounds[rounds.length - 1];
+}
+
 export default function FixturesScreen() {
-  const {
-    league,
-    season,
-    round,
-    activeRound,
-    seasonActive,
-    lang,
-    setLeagueSeason,
-    setRound,
-    setActiveRound,
-    setSeasonActive,
-  } = useAppState();
+  const { league, season, round, setLeagueSeason, setRound, lang } =
+    useAppState();
 
   const [fixtures, setFixtures] = useState([]);
   const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+
+  // matchId -> { outcome: '1'|'X'|'2'|null, home: number|null, away: number|null }
   const [fixtureStates, setFixtureStates] = useState({});
 
   const tr = lang === 'tr';
@@ -46,9 +75,11 @@ export default function FixturesScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [league, season]);
 
+  // ekran fokuslandığında tahmin state'lerini yenile
   useFocusEffect(
     React.useCallback(() => {
       let active = true;
+
       (async () => {
         try {
           const storedStates = await getFixturePredictions(league.id, season);
@@ -58,6 +89,7 @@ export default function FixturesScreen() {
           console.log('Fixtures predictions refresh error', e);
         }
       })();
+
       return () => {
         active = false;
       };
@@ -66,6 +98,7 @@ export default function FixturesScreen() {
 
   async function load(initial) {
     if (initial) setLoading(true);
+    setError('');
 
     try {
       const storedStates = await getFixturePredictions(league.id, season);
@@ -74,61 +107,86 @@ export default function FixturesScreen() {
       const cached = await getCachedFixtures(league.id, season);
       if (cached && initial) {
         setFixtures(cached);
-        syncRoundsFromMatches(cached);
+        setupRounds(cached);
       }
 
-      const [fresh, roundsRes] = await Promise.all([
-        getFixtures({ league: league.id, season }),
-        getRounds({ league: league.id, season }),
+      const [roundMeta, fresh] = await Promise.all([
+        getRounds({
+          league: league.id,
+          season,
+        }),
+        getFixtures({
+          league: league.id,
+          season,
+        }),
       ]);
 
       setFixtures(fresh);
+      setupRounds(fresh, roundMeta);
       await setCachedFixtures(league.id, season, fresh);
-
-      setRounds(roundsRes.rounds);
-      setActiveRound(roundsRes.activeRound);
-      setSeasonActive(roundsRes.seasonActive);
-
-      // İlk yüklemede veya round context'i geçersizse varsayılanı ayarla
-      if (
-        roundsRes.activeRound != null &&
-        roundsRes.rounds.includes(roundsRes.activeRound) &&
-        (round == null || !roundsRes.rounds.includes(round))
-      ) {
-        setRound(roundsRes.activeRound);
-      } else if (round != null && !roundsRes.rounds.includes(round) && roundsRes.rounds.length) {
-        setRound(
-          roundsRes.activeRound ?? roundsRes.rounds[roundsRes.rounds.length - 1]
-        );
-      }
     } catch (e) {
       console.log('Fixtures load error', e);
+      setError(
+        tr
+          ? 'Veri alınamadı. Lütfen tekrar deneyin.'
+          : 'Failed to load data. Please retry.'
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }
 
-  // Offline fallback: API erişilemezse fixture listesinden round set'i üret
-  function syncRoundsFromMatches(matches) {
-    const rs = Array.from(new Set(matches.map((m) => m.round))).sort(
+  function setupRounds(matches, roundMeta = null) {
+    const fallbackRounds = Array.from(new Set(matches.map((m) => m.round))).sort(
       (a, b) => a - b
     );
-    setRounds((prev) => (prev.length ? prev : rs));
+    const rs =
+      roundMeta?.rounds && roundMeta.rounds.length
+        ? roundMeta.rounds
+        : fallbackRounds;
+    setRounds(rs);
+
+    if (!rs.length) {
+      setRound(null);
+      return;
+    }
+
+    const initialRound =
+      roundMeta?.active ?? computeTargetRound(rs, matches, league, season);
+
+    if (initialRound != null && (round == null || !rs.includes(round))) {
+      setRound(initialRound);
+    }
   }
 
+  const selectedRound = round;
   const filtered = useMemo(
-    () => (round == null ? fixtures : fixtures.filter((m) => m.round === round)),
-    [fixtures, round]
+    () =>
+      selectedRound == null
+        ? fixtures
+        : fixtures.filter((m) => m.round === selectedRound),
+    [fixtures, selectedRound]
   );
 
   const handleSelectOutcome = (fixture, outcome) => {
     setFixtureStates((prev) => {
       const current =
         prev[fixture.id] || { outcome: null, home: null, away: null };
+
       const nextOutcome = current.outcome === outcome ? null : outcome;
-      const nextState = { outcome: nextOutcome, home: null, away: null };
-      const nextAll = { ...prev, [fixture.id]: nextState };
+
+      const nextState = {
+        outcome: nextOutcome,
+        home: null,
+        away: null,
+      };
+
+      const nextAll = {
+        ...prev,
+        [fixture.id]: nextState,
+      };
+
       setFixturePredictions(league.id, season, nextAll);
       return nextAll;
     });
@@ -145,11 +203,29 @@ export default function FixturesScreen() {
     setFixtureStates((prev) => {
       const current =
         prev[fixture.id] || { outcome: null, home: null, away: null };
-      const nextState = { ...current, [side]: parsed, outcome: null };
-      const nextAll = { ...prev, [fixture.id]: nextState };
+      const nextState = {
+        ...current,
+        [side]: parsed,
+        outcome: null,
+      };
+
+      const nextAll = {
+        ...prev,
+        [fixture.id]: nextState,
+      };
+
       setFixturePredictions(league.id, season, nextAll);
       return nextAll;
     });
+  };
+
+  const handleJumpToCurrentRound = () => {
+    if (!fixtures.length || !rounds.length) return;
+
+    const targetRound = computeTargetRound(rounds, fixtures, league, season);
+    if (targetRound != null) {
+      setRound(targetRound); // global round
+    }
   };
 
   const handleClearSelections = async () => {
@@ -157,10 +233,13 @@ export default function FixturesScreen() {
     await setFixturePredictions(league.id, season, {});
   };
 
-  return (
-    <SafeAreaView className="flex-1 bg-bg" edges={['top', 'left', 'right']}>
-      <AppHeader round={round} seasonActive={seasonActive} />
+  const emptyLabel = tr ? 'Maç bulunamadı.' : 'No matches found.';
 
+  return (
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: '#020617' }}
+      edges={['top', 'left', 'right']}
+    >
       <LeaguePicker
         selectedLeague={league}
         season={season}
@@ -170,22 +249,70 @@ export default function FixturesScreen() {
       <RoundPicker
         rounds={rounds}
         round={round}
-        activeRound={activeRound}
         onChange={setRound}
         lang={lang}
       />
 
-      <View className="flex-row justify-center gap-2 px-4 pb-1">
+      <View
+        style={{
+          paddingHorizontal: 16,
+          marginBottom: 4,
+          flexDirection: 'row',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <Pressable
+          onPress={handleJumpToCurrentRound}
+          style={({ pressed }) => [
+            {
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: '#111827',
+              backgroundColor: '#020617',
+            },
+            pressed && {
+              opacity: 0.8,
+              transform: [{ scale: 0.97 }],
+            },
+          ]}
+        >
+          <Text style={{ color: '#e5e7eb', fontSize: 11 }}>
+            {tr ? 'Güncel haftayı getir' : 'Current week'}
+          </Text>
+        </Pressable>
+
         <Pressable
           onPress={handleClearSelections}
-          className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-surface-muted active:bg-surface-hover"
+          style={({ pressed }) => [
+            {
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: '#111827',
+              backgroundColor: '#020617',
+            },
+            pressed && {
+              opacity: 0.8,
+              transform: [{ scale: 0.97 }],
+            },
+          ]}
         >
-          <Ionicons name="refresh-circle-outline" size={12} color="#9CA7BE" />
-          <Text className="text-fg-muted text-[11px] font-semibold">
-            {tr ? 'Seçimleri temizle' : 'Clear selections'}
+          <Text style={{ color: '#e5e7eb', fontSize: 11 }}>
+            {tr ? 'Temizle' : 'Clear selections'}
           </Text>
         </Pressable>
       </View>
+
+      {error ? (
+        <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+          <Text style={{ color: '#fca5a5', textAlign: 'center' }}>{error}</Text>
+        </View>
+      ) : null}
 
       <FlatList
         data={filtered}
@@ -196,19 +323,22 @@ export default function FixturesScreen() {
           return (
             <MatchCard
               fixture={item}
-              lang={lang}
               selectedOutcome={st.outcome}
               score={{ home: st.home, away: st.away }}
               onSelectOutcome={(opt) => handleSelectOutcome(item, opt)}
-              onChangeHomeScore={(txt) => handleChangeScore(item, 'home', txt)}
-              onChangeAwayScore={(txt) => handleChangeScore(item, 'away', txt)}
+              onChangeHomeScore={(txt) =>
+                handleChangeScore(item, 'home', txt)
+              }
+              onChangeAwayScore={(txt) =>
+                handleChangeScore(item, 'away', txt)
+              }
             />
           );
         }}
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
-            tintColor="#F97316"
+            tintColor="#f97316"
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
@@ -218,10 +348,9 @@ export default function FixturesScreen() {
         }
         ListEmptyComponent={
           !loading ? (
-            <View className="items-center justify-center py-12">
-              <Ionicons name="calendar-outline" size={28} color="#5F6B82" />
-              <Text className="text-fg-muted text-sm mt-2">
-                {tr ? 'Maç bulunamadı.' : 'No matches found.'}
+            <View style={{ padding: 16 }}>
+              <Text style={{ color: '#6b7280', textAlign: 'center' }}>
+                {emptyLabel}
               </Text>
             </View>
           ) : null
